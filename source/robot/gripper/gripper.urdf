@@ -1,0 +1,138 @@
+<?xml version="1.0" ?>
+<robot name="gripper">
+
+<material name="silver">
+  <color rgba="0.700 0.700 0.700 1.000"/>
+</material>
+
+<link name="base_link">
+  <inertial>
+    <origin xyz="1.09994243402047e-11 -5.627843248882229e-06 0.0010000000000001425" rpy="0 0 0"/>
+    <mass value="0.016735507313148608"/>
+    <inertia ixx="1.87100937194495e-06" iyy="1.8459518061742172e-06" izz="3.705804173243734e-06" ixy="-3.104154119104709e-17" iyz="5.5992114157655866e-21" ixz="6.96348537015403e-21"/>
+  </inertial>
+  <visual>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+    <material/>
+  </visual>
+  <collision>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="gripper_finger_21">
+  <inertial>
+    <origin xyz="0.009661265362819183 -0.011962663188381928 0.018039884465234045" rpy="0 0 0"/>
+    <mass value="0.0544277408008124"/>
+    <inertia ixx="1.4473550625953804e-05" iyy="1.3552743002834288e-05" izz="7.713588639273628e-06" ixy="9.472661925285142e-07" iyz="2.902873699074972e-06" ixz="-3.199987412679027e-06"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.013394 -0.018 -0.038" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="meshes/gripper_finger_21.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+    <material/>
+  </visual>
+  <collision>
+    <origin xyz="-0.013394 -0.018 -0.038" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="meshes/gripper_finger_21.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="gripper_finger1">
+  <inertial>
+    <origin xyz="-0.009661265362820796 0.011962663188382041 0.018039884465233996" rpy="0 0 0"/>
+    <mass value="0.0544277408008124"/>
+    <inertia ixx="1.4473550625954563e-05" iyy="1.35527430028338e-05" izz="7.71358863927392e-06" ixy="9.472661925283897e-07" iyz="-2.902873699075077e-06" ixz="3.1999874126788236e-06"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.013394 0.018 -0.038" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="meshes/gripper_finger1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+    <material/>
+  </visual>
+  <collision>
+    <origin xyz="0.013394 0.018 -0.038" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="meshes/gripper_finger1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="gripper_rail_base1">
+  <inertial>
+    <origin xyz="-3.583314045414454e-05 0.020000000001405335 0.03289153833882837" rpy="0 0 0"/>
+    <mass value="0.0941415746104601"/>
+    <inertia ixx="1.9029074552756882e-05" iyy="3.05760998973404e-05" izz="4.1861358736610484e-05" ixy="-7.653885896990366e-17" iyz="-9.406516370654584e-16" ixz="-2.2612845001071165e-08"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.0 0.02 -0.002" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="meshes/gripper_rail_base1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+    <material/>
+  </visual>
+  <collision>
+    <origin xyz="0.0 0.02 -0.002" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="meshes/gripper_rail_base1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<joint name="Slider_10" type="prismatic">
+  <origin xyz="0.013394 0.038 0.036" rpy="0 0 0"/>
+  <parent link="gripper_rail_base1"/>
+  <child link="gripper_finger_21"/>
+  <axis xyz="1.0 -0.0 -0.0"/>
+  <limit upper="0.01" lower="-0.02" effort="100" velocity="100"/>
+</joint>
+<transmission name="Slider_10_tran">
+  <type>transmission_interface/SimpleTransmission</type>
+  <joint name="Slider_10">
+    <hardwareInterface>PositionJointInterface</hardwareInterface>
+  </joint>
+  <actuator name="Slider_10_actr">
+    <hardwareInterface>PositionJointInterface</hardwareInterface>
+    <mechanicalReduction>1</mechanicalReduction>
+  </actuator>
+</transmission>
+
+<joint name="Slider_11" type="prismatic">
+  <origin xyz="-0.013394 0.002 0.036" rpy="0 0 0"/>
+  <parent link="gripper_rail_base1"/>
+  <child link="gripper_finger1"/>
+  <axis xyz="1.0 -0.0 -0.0"/>
+  <limit upper="0.02" lower="-0.01" effort="100" velocity="100"/>
+</joint>
+<transmission name="Slider_11_tran">
+  <type>transmission_interface/SimpleTransmission</type>
+  <joint name="Slider_11">
+    <hardwareInterface>PositionJointInterface</hardwareInterface>
+  </joint>
+  <actuator name="Slider_11_actr">
+    <hardwareInterface>PositionJointInterface</hardwareInterface>
+    <mechanicalReduction>1</mechanicalReduction>
+  </actuator>
+</transmission>
+
+<joint name="Rigid_12" type="fixed">
+  <origin xyz="0.0 -0.02 0.002" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="gripper_rail_base1"/>
+</joint>
+
+</robot>

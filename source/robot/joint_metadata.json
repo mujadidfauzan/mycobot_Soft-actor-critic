@@ -1,0 +1,75 @@
+{
+  "joint_name_to_metadata": {
+    "link2_to_link1": {
+      "actuator_type": "motor",
+      "nn_id": 0,
+      "id": 0,
+      "kp": "100.0",
+      "kd": "8.0",
+      "soft_torque_limit": "12.0"
+    },
+
+    "link3_to_link2": {
+      "actuator_type": "motor",
+      "nn_id": 1,
+      "id": 1,
+      "kp": "100.0",
+      "kd": "8.0",
+      "soft_torque_limit": "12.0"
+    },
+
+    "link4_to_link3": {
+      "actuator_type": "motor",
+      "nn_id": 2,
+      "id": 2,
+      "kp": "90.0",
+      "kd": "7.0",
+      "soft_torque_limit": "10.0"
+    },
+
+    "link5_to_link4": {
+      "actuator_type": "motor",
+      "nn_id": 3,
+      "id": 3,
+      "kp": "80.0",
+      "kd": "6.0",
+      "soft_torque_limit": "10.0"
+    },
+
+    "link6_to_link5": {
+      "actuator_type": "motor",
+      "nn_id": 4,
+      "id": 4,
+      "kp": "70.0",
+      "kd": "5.0",
+      "soft_torque_limit": "8.0"
+    },
+
+    "link6output_to_link6": {
+      "actuator_type": "motor",
+      "nn_id": 5,
+      "id": 5,
+      "kp": "60.0",
+      "kd": "5.0",
+      "soft_torque_limit": "8.0"
+    },
+
+    "base_gearLeft": {
+      "actuator_type": "motor",
+      "nn_id": 6,
+      "id": 6,
+      "kp": "40.0",
+      "kd": "3.0",
+      "soft_torque_limit": "5.0"
+    },
+
+    "base_gearRight": {
+      "actuator_type": "motor",
+      "nn_id": 7,
+      "id": 7,
+      "kp": "40.0",
+      "kd": "3.0",
+      "soft_torque_limit": "5.0"
+    }
+  }
+}
