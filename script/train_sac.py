@@ -22,11 +22,12 @@ os.makedirs(videos_dir, exist_ok=True)
 os.makedirs(tb_dir, exist_ok=True)
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
+model_path = os.path.join(current_dir, "..", "source", "robot", "object_lift.xml")
 
 
 def make_env():
     env = GraspingEnv(
-        xml_file=os.path.join(current_dir, "..", "robot", "object_lift.xml"),
+        xml_file=model_path,
         render_mode="rgb_array",
     )
 
