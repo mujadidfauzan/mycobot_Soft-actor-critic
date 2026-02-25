@@ -24,7 +24,7 @@ os.makedirs(tb_dir, exist_ok=True)
 
 def make_env():
     env = GraspingEnv(
-        xml_file="/home/fauzan/Mujoco/Skripsi/source/robot/object_lift.xml",
+        xml_file="source/robot/object_lift.xml",
         render_mode="rgb_array",
     )
 

@@ -5,8 +5,8 @@ import pandas as pd
 
 # --- 1. Konfigurasi Path ---
 csv_name = "eval_20260223_051558.csv"
-input_path = f"/home/fauzan/Mujoco/Skripsi/eval_logs/{csv_name}"
-output_folder = "/home/fauzan/Mujoco/Skripsi/eval_logs/plot/"
+input_path = f"Skripsi/eval_logs/{csv_name}"
+output_folder = "Skripsi/eval_logs/plot/"
 output_path = os.path.join(output_folder, f"{csv_name.replace('.csv', '')}.png")
 
 # Pastikan folder tujuan ada
