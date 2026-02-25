@@ -26,7 +26,7 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
         frame_skip: int = 5,
         default_camera_config: dict[str, float | int] = DEFAULT_CAMERA_CONFIG,
         reward_dist_weight: float = 2,
-        reward_dist_target_weight: float = 3,
+        reward_dist_target_weight: float = 1,
         **kwargs,
     ):
         utils.EzPickle.__init__(
@@ -121,7 +121,7 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
                 self.data.site("attachment_site").xpos.copy()
                 - self.data.body("obj").xpos.copy()
             )
-            < 0.01
+            < 0.03
         ):
             self.gripper_ctrl(close=True, target=target)
         else:

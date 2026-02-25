@@ -40,7 +40,7 @@ video_folder = videos_dir
 env = VecVideoRecorder(
     env,
     video_folder=video_folder,
-    record_video_trigger=lambda step: step % 10000 == 0,
+    record_video_trigger=lambda step: step % 50000 == 0,
     video_length=1000,
     name_prefix="lift_reach",
 )
