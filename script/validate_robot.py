@@ -1,4 +1,5 @@
 import time
+from xml.parsers.expat import model
 
 import mujoco
 import mujoco.viewer
@@ -6,8 +7,7 @@ import numpy as np
 
 
 def main():
-    # 1. Muat model dan data dari file XML utama
-    model_path = "/home/fauzan/Mujoco/Skripsi/source/robot/pickplace.xml"
+    model_path = "/home/fauzan/Mujoco/Skripsi/source/robot/object_lift.xml"
     try:
         model = mujoco.MjModel.from_xml_path(model_path)
         data = mujoco.MjData(model)
@@ -15,50 +15,94 @@ def main():
         print(f"Gagal memuat model: {e}")
         return
 
-    # 2. Definisikan urutan waypoint (Target posisi untuk 8 aktuator)
-    # Urutan aktuator berdasarkan file XML:
-    # [link2_to_link1, link3_to_link2, link4_to_link3, link5_to_link4,
-    #  link6_to_link5, link6output_to_link6, gripper_l, gripper_r]
+    joint_target = np.array(
+        [
+            0.43323181122751636,
+            -1.0090628536208912,
+            -0.9193142699937576,
+            0.20175908294582942,
+            0.22779390073164746,
+            0.697362652491631,
+        ]
+    )
 
-    # Catatan: Nilai joint (radian) ini adalah perkiraan kasar (hardcoded).
-    # Untuk posisi yang 100% akurat ke koordinat objek [0.27, 0, 0.1],
-    # Anda idealnya menggunakan Inverse Kinematics (IK).
+    joint_lift = np.array(
+        [
+            0.19913068567790296,
+            -0.6305886738330566,
+            -1.7506900944715555,
+            1.3378228296165577,
+            0.6195168721310196,
+            2.6778849465640695,
+        ]
+    )
 
     waypoints = [
         {
             "name": "1. Posisi Awal (Home)",
             "ctrl": np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.02, -0.02]),
-            "duration": 1.0,  # Waktu tunggu agar robot mencapai posisi (detik)
+            "duration": 0.2,
         },
         {
             "name": "2. Mendekati Objek (Reach)",
-            # Menekuk joint 2, 3, dan 4 ke bawah, gripper tetap terbuka
-            "ctrl": np.array([0.176, -1.58, 0.0, 0.0, 0.0, 0.0, 0.02, -0.02]),
-            "duration": 2.0,
+            "ctrl": np.array(
+                [
+                    joint_target[0],
+                    joint_target[1],
+                    joint_target[2],
+                    joint_target[3],
+                    joint_target[4],
+                    joint_target[5],
+                    0.02,
+                    -0.02,
+                ]
+            ),
+            "duration": 1.0,
         },
         {
             "name": "3. Menutup Gripper (Grasp)",
-            # Posisi lengan tetap, nilai gripper diset minus/rapat
-            "ctrl": np.array([0.176, -1.58, 0.0, 0.0, 0.0, 0.0, -0.02, 0.02]),
-            "duration": 2.0,
+            "ctrl": np.array(
+                [
+                    joint_target[0],
+                    joint_target[1],
+                    joint_target[2],
+                    joint_target[3],
+                    joint_target[4],
+                    joint_target[5],
+                    -0.02,
+                    0.02,
+                ]
+            ),
+            "duration": 1.0,
         },
         {
             "name": "4. Mengangkat Objek (Lift)",
-            # Mengangkat joint 2 ke atas, menahan objek
-            "ctrl": np.array([0.176, -1.2, 0.0, 0.0, 0.0, 0.0, -0.02, 0.02]),
+            "ctrl": np.array(
+                [
+                    joint_lift[0],
+                    joint_lift[1],
+                    joint_lift[2],
+                    joint_lift[3],
+                    joint_lift[4],
+                    joint_lift[5],
+                    -0.02,
+                    0.02,
+                ]
+            ),
             "duration": 2.0,
         },
     ]
 
-    # 3. Jalankan simulasi dengan viewer
+    # Ganti posisi objek
+    data.joint("cube_joint").qpos = [0.27, 0.0, 0.1, 1, 0, 0, 0]
+    mujoco.mj_forward(model, data)
+
     with mujoco.viewer.launch_passive(model, data) as viewer:
-        # Sinkronisasi awal
         viewer.sync()
 
         for wp in waypoints:
             print(f"Fase: {wp['name']}")
 
-            # Set target kontrol (Posisi PD Control)
             data.ctrl[:] = wp["ctrl"]
 
             # Hitung berapa banyak step fisika yang dibutuhkan untuk durasi ini
@@ -69,14 +113,11 @@ def main():
                 # Jalankan 1 step simulasi fisika
                 mujoco.mj_step(model, data)
 
-                # Render ke viewer secara berkala (tidak perlu setiap step fisika)
-                # Sinkronisasi visual setiap ~1/60 detik agar tidak berat
+                # Sinkronisasi visual setiap ~1/60 detik
                 viewer.sync()
 
-                # Tambahkan sedikit jeda agar simulasi berjalan sesuai waktu nyata (real-time)
                 time.sleep(model.opt.timestep)
 
-                # Cek apakah window ditutup oleh user
                 if not viewer.is_running():
                     break
 

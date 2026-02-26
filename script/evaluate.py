@@ -11,7 +11,7 @@ from source.envs.grasping_env import GraspingEnv
 
 
 def main():
-    model_path = "/home/fauzan/Mujoco/Skripsi/logs/models/SAC_24_02_2026_06_35_24/sac_lift_800000_steps.zip"
+    model_path = "/home/fauzan/Mujoco/Skripsi/logs/models/SAC_25_02_2026_15_13_02/sac_lift_final.zip"
     xml_path = "/home/fauzan/Mujoco/Skripsi/source/robot/object_lift.xml"
 
     out_dir = "./eval_logs"
@@ -56,6 +56,7 @@ def main():
         )
 
         for step in range(500):
+            print(step)
             action, _ = model.predict(obs, deterministic=True)
             obs, reward, terminated, truncated, step_info = env.step(action)
             ee_pos = env.data.site("attachment_site").xpos.copy()

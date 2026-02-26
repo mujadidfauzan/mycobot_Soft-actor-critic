@@ -1,0 +1,1 @@
+step,obj_pos,target_pos,dist_ee_obj,dist_obj_target,joint1_qpos,joint2_qpos,joint3_qpos,joint4_qpos,joint5_qpos,joint6_qpos,gripL_qpos,gripR_qpos,gripper_state

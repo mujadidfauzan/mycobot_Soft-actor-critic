@@ -9,13 +9,13 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, VecVideoRecorder
 from torch import nn
 
-from source.envs import GraspingEnv
+from source.envs import GraspingEnv, ReachingEnv
 
 run_name = f"SAC_{datetime.now().strftime('%d_%m_%Y_%H_%M_%S')}"
-
-models_dir = os.path.join("logs", "models", run_name)
-videos_dir = os.path.join("logs", "videos", run_name)
-tb_dir = os.path.join("logs", "tensorboard", run_name)
+env_name = "GraspingEnv"
+models_dir = os.path.join("logs", "models", env_name, run_name)
+videos_dir = os.path.join("logs", "videos", env_name, run_name)
+tb_dir = os.path.join("logs", "tensorboard", env_name, run_name)
 
 os.makedirs(models_dir, exist_ok=True)
 os.makedirs(videos_dir, exist_ok=True)
@@ -26,10 +26,16 @@ model_path = os.path.join(current_dir, "..", "source", "robot", "object_lift.xml
 
 
 def make_env():
-    env = GraspingEnv(
-        xml_file=model_path,
-        render_mode="rgb_array",
-    )
+    if env_name == "ReachingEnv":
+        env = ReachingEnv(
+            xml_file=model_path,
+            render_mode="rgb_array",
+        )
+    elif env_name == "GraspingEnv":
+        env = GraspingEnv(
+            xml_file=model_path,
+            render_mode="rgb_array",
+        )
 
     env = Monitor(env)
     return env
@@ -71,13 +77,11 @@ class InfoTensorboardCallback(BaseCallback):
                 for k in [
                     "dist",
                     "reward_dist",
-                    # "touch_bonus",
                     "control_penalty",
                     "reward_target",
-                    # "reward_lift",
-                    # "reward_orient",
                     "reward_dist_tanh",
                     "reward_target_tanh",
+                    "reward_orient",
                 ]:
                     if k in info0:
                         self.logger.record(f"custom/{k}", float(info0[k]))

@@ -3,10 +3,13 @@ import os
 import matplotlib.pyplot as plt
 import pandas as pd
 
+script_path = os.path.abspath(__file__)
+BASE_DIR = os.path.dirname(os.path.dirname(script_path))
+print("Base Directory:", BASE_DIR)
 # --- 1. Konfigurasi Path ---
-csv_name = "eval_20260223_051558.csv"
-input_path = f"Skripsi/eval_logs/{csv_name}"
-output_folder = "Skripsi/eval_logs/plot/"
+csv_name = "eval_20260226_124513.csv"
+input_path = f"{BASE_DIR}/eval_logs/{csv_name}"
+output_folder = f"{BASE_DIR}/eval_logs/plot/"
 output_path = os.path.join(output_folder, f"{csv_name.replace('.csv', '')}.png")
 
 # Pastikan folder tujuan ada

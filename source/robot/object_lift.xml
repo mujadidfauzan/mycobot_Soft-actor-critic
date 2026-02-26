@@ -32,7 +32,7 @@
         <site name="target" pos="0.3 0.0 0.2" size=".02 .02 .02" rgba="1 0.0 0.0 1" type="sphere"/>
       </body>
   
-      <body name="obj" pos="0.27 -0.06 0.1">
+      <body name="obj" pos="0.16715467 0.08831554 0.0246076">
             <freejoint name="cube_joint"/>
             <geom name="cube_geom" type="box" size="0.015 0.015 0.015" mass="0.03" material="cube_material" />
       </body>
