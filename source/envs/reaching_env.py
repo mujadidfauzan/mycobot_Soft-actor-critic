@@ -79,7 +79,7 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
 
         self.max_episode_steps = 500
         self.current_step = 0
-
+        self.frame_skip = frame_skip
         self.metadata = {
             "render_modes": [
                 "human",
@@ -89,16 +89,6 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
             ],
             "render_fps": int(np.round(1.0 / self.dt)),
         }
-
-    def gripper_ctrl(self, close: bool, target):
-        if close:
-            # print("Close")
-            target[6] = -0.02
-            target[7] = 0.02
-        else:
-            # print("Open")
-            target[6] = 0.01
-            target[7] = -0.01
 
     def step(self, action):
         self.current_step += 1
@@ -110,21 +100,10 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
         target = current_ctrl.copy()
 
         target[:-2] += scale_arm * action[:-2]
-        # target[6] = 0.02
-        # target[7] = -0.02
+        target[6] = -0.02
+        target[7] = 0.02
 
-        if (
-            np.linalg.norm(
-                self.data.site("attachment_site").xpos.copy()
-                - self.data.body("obj").xpos.copy()
-            )
-            < 0.03
-        ):
-            self.gripper_ctrl(close=True, target=target)
-        else:
-            self.gripper_ctrl(close=False, target=target)
-
-        target = np.clip(target, self.action_space.low, self.action_space.high)
+        # target = np.clip(target, self.action_space.low, self.action_space.high)
         # print("Target after clipping:", target)
 
         self.do_simulation(target, self.frame_skip)
@@ -148,14 +127,24 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
         reward_dist_tanh = 1.0 - float(np.tanh(float(dist) / 0.10))
 
         control_penalty = -0.001 * np.sum(np.square(action))
+
+        target_xmat = self.data.site("target").xmat.copy()
+        target_quat = np.zeros(4, dtype=np.float64)
+        mujoco.mju_mat2Quat(target_quat, target_xmat)
+        obj_quat = self.data.qpos[self.obj_qposadr + 3 : self.obj_qposadr + 7].copy()
+
+        orient_err = self._quat_orientation_error(obj_quat, target_quat)
+        reward_orient = -orient_err * 0.5
+
         reward_info = {
             "dist": float(dist),
             "reward_dist": float(reward_dist),
             "reward_dist_tanh": float(reward_dist_tanh),
             "control_penalty": float(control_penalty),
+            "reward_orient": float(reward_orient),
         }
 
-        reward = reward_dist + reward_dist_tanh + control_penalty
+        reward = reward_dist + reward_dist_tanh + control_penalty + reward_orient
 
         return reward, reward_info
 
@@ -164,58 +153,52 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
         qpos = self.init_qpos.copy()
         qvel = self.init_qvel.copy()
 
-        # === Set object position ===
-        adr = self.obj_qposadr
-        vadr = self.obj_dofadr
-
-        # Cube Pos
-        x, y, z = 0.27, 0.0, 0.1
-
-        # Target Pos
-        tx = self.np_random.uniform(0.15, 0.27)
-        ty = self.np_random.uniform(-0.10, 0.10)
-        tz = 0.025
-
-        qpos[adr : adr + 3] = [x, y, z]
-        qpos[adr + 3 : adr + 7] = [1, 0, 0, 0]
-        qvel[vadr : vadr + 6] = 0.0
-
-        self.model.site_pos[self.target_site_id] = np.array(
-            [tx, ty, tz], dtype=np.float64
-        )
-
-        # Open gripper initially
-        qpos[self.gripL_qadr] = 0.02
-        qpos[self.gripR_qadr] = -0.02
-
-        self.set_state(qpos, qvel)
-        mujoco.mj_forward(self.model, self.data)
-
-        # === FK waypoints ===
-        joint_target = np.array(
-            [0.43323181, -1.00906285, -0.91931426, 0.20175908, 0.22779390, 0.69736265]
-        )
-
+        # === Robot pose: Lift position ===
         joint_lift = np.array(
             [0.19913068, -0.63058867, -1.75069009, 1.33782282, 0.61951687, 2.67788494]
         )
 
-        waypoints = [
-            np.array([*joint_target, 0.02, -0.02]),  # reach
-            np.array([*joint_target, -0.02, 0.02]),  # grasp
-            np.array([*joint_lift, -0.02, 0.02]),  # lift
-        ]
+        qpos[:6] = joint_lift
 
-        durations = [1.0, 1.0, 2.0]
+        # === Close gripper ===
+        qpos[self.gripL_qadr] = -0.02
+        qpos[self.gripR_qadr] = 0.02
 
-        for ctrl, duration in zip(waypoints, durations):
-            steps = int(duration / 0.002)
-            for _ in range(steps):
-                self.data.ctrl[:] = ctrl
-                mujoco.mj_step(self.model, self.data)
-                time.sleep(0.002)
+        # === Object position (10 cm height) ===
+        x, y, z = 0.23644799, 0.05533779, 0.10097997
+        qpos[self.obj_qposadr : self.obj_qposadr + 3] = [x, y, z]
+        qpos[self.obj_qposadr + 3 : self.obj_qposadr + 7] = [1, 0, 0, 0]
 
+        qvel[self.obj_dofadr : self.obj_dofadr + 6] = 0.0
+
+        # === Random target ===
+        tx = self.np_random.uniform(0.10, 0.27)
+        ty = self.np_random.uniform(-0.20, 0.20)
+        tz = 0.025
+
+        self.model.site_pos[self.target_site_id] = np.array([tx, ty, tz])
+
+        self.set_state(qpos, qvel)
+        # mujoco.mj_forward(self.model, self.data)
+
+        self.data.ctrl[:6] = joint_lift
+        self.data.ctrl[6] = -0.0
+        self.data.ctrl[7] = 0.0
+
+        self.model.opt.gravity[:] = [0, 0, 0]
+        for i in range(100):
+            mujoco.mj_step(self.model, self.data)
+
+            if i == 50:
+                self.data.ctrl[6] = -0.02
+                self.data.ctrl[7] = 0.02
+
+        self.model.opt.gravity[:] = [0, 0, -9.81]
         self.current_step = 0
+
+        for _ in range(20):
+            mujoco.mj_step(self.model, self.data)
+
         return self._get_obs()
 
     def _get_obs(self):
@@ -261,3 +244,16 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
         )
 
         return obs.astype(np.float32)
+
+    def _quat_orientation_error(self, q1: np.ndarray, q2: np.ndarray) -> float:
+
+        # Normalize
+        q1 = q1 / (np.linalg.norm(q1) + 1e-8)
+        q2 = q2 / (np.linalg.norm(q2) + 1e-8)
+
+        # Dot product
+        dot = np.clip(np.abs(np.dot(q1, q2)), 0.0, 1.0)
+
+        # Angle error
+        angle_err = 2.0 * np.arccos(dot)
+        return float(angle_err)

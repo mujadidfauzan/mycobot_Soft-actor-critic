@@ -12,7 +12,7 @@ from torch import nn
 from source.envs import GraspingEnv, ReachingEnv
 
 run_name = f"SAC_{datetime.now().strftime('%d_%m_%Y_%H_%M_%S')}"
-env_name = "GraspingEnv"
+env_name = "ReachingEnv"
 models_dir = os.path.join("logs", "models", env_name, run_name)
 videos_dir = os.path.join("logs", "videos", env_name, run_name)
 tb_dir = os.path.join("logs", "tensorboard", env_name, run_name)
