@@ -80,7 +80,7 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
             low=-np.inf, high=np.inf, shape=dummy_obs.shape, dtype=np.float32
         )
 
-        self.gripper_state = "open"
+        # self.gripper_state = "open"
 
         self.max_episode_steps = 500
         self.current_step = 0
@@ -97,13 +97,13 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
 
     def gripper_ctrl(self, close: bool, target):
         if close:
-            self.gripper_state = "closed"
+            # self.gripper_state = "closed"
             target[6] = -0.02
             target[7] = 0.02
         else:
-            self.gripper_state = "open"
-            target[6] = 0.01
-            target[7] = -0.01
+            # self.gripper_state = "open"
+            target[6] = 0.02
+            target[7] = -0.02
 
     def step(self, action):
         self.current_step += 1
@@ -115,8 +115,8 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
         target = current_ctrl.copy()
 
         target[:-2] += scale_arm * action[:-2]
-        # target[6] = 0.02
-        # target[7] = -0.02
+        target[6] = 0.02
+        target[7] = -0.02
 
         if (
             np.linalg.norm(
