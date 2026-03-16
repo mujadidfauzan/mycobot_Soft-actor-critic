@@ -12,7 +12,8 @@ from torch import nn
 from source.envs import GraspingEnv, ReachingEnv
 
 run_name = f"SAC_{datetime.now().strftime('%d_%m_%Y_%H_%M_%S')}"
-env_name = "ReachingEnv"
+env_name = "GraspingEnv"
+DEBUG_VIEW = True
 models_dir = os.path.join("logs", "models", env_name, run_name)
 videos_dir = os.path.join("logs", "videos", env_name, run_name)
 tb_dir = os.path.join("logs", "tensorboard", env_name, run_name)
@@ -29,12 +30,12 @@ def make_env():
     if env_name == "ReachingEnv":
         env = ReachingEnv(
             xml_file=model_path,
-            render_mode="rgb_array",
+            render_mode="human" if DEBUG_VIEW else "rgb_array",
         )
     elif env_name == "GraspingEnv":
         env = GraspingEnv(
             xml_file=model_path,
-            render_mode="rgb_array",
+            render_mode="human" if DEBUG_VIEW else "rgb_array",
         )
 
     env = Monitor(env)
@@ -42,17 +43,16 @@ def make_env():
 
 
 env = DummyVecEnv([make_env])
-
 video_folder = videos_dir
 
-
-env = VecVideoRecorder(
-    env,
-    video_folder=video_folder,
-    record_video_trigger=lambda step: step % 50000 == 0,
-    video_length=1000,
-    name_prefix="lift_reach",
-)
+if not DEBUG_VIEW:
+    env = VecVideoRecorder(
+        env,
+        video_folder=video_folder,
+        record_video_trigger=lambda step: step % 50000 == 0,
+        video_length=1000,
+        name_prefix="lift_reach",
+    )
 
 
 checkpoint_callback = CheckpointCallback(
@@ -62,6 +62,18 @@ checkpoint_callback = CheckpointCallback(
     save_replay_buffer=False,
     save_vecnormalize=False,
 )
+
+
+class RenderCallback(BaseCallback):
+    def _on_training_start(self) -> None:
+        env0 = self.training_env.envs[0].unwrapped
+        env0.render()
+        env0.enable_frame_visualization()
+
+    def _on_step(self) -> bool:
+        env0 = self.training_env.envs[0].unwrapped
+        env0.render()
+        return True
 
 
 class InfoTensorboardCallback(BaseCallback):
@@ -117,7 +129,11 @@ model = SAC(
 
 model.learn(
     total_timesteps=1_000_000,
-    callback=[checkpoint_callback, InfoTensorboardCallback(log_freq=1000)],
+    callback=[
+        checkpoint_callback,
+        InfoTensorboardCallback(log_freq=1000),
+        RenderCallback(),
+    ],
 )
 
 

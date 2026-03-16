@@ -11,7 +11,7 @@ from source.envs.grasping_env import GraspingEnv
 
 
 def main():
-    model_path = "/home/fauzan/Mujoco/Skripsi/logs/models/SAC_25_02_2026_15_13_02/sac_lift_final.zip"
+    model_path = "/home/fauzan/Mujoco/Skripsi/logs/models/GraspingEnv/SAC_26_02_2026_14_27_49/sac_lift_final.zip"
     xml_path = "/home/fauzan/Mujoco/Skripsi/source/robot/object_lift.xml"
 
     out_dir = "./eval_logs"
@@ -35,23 +35,29 @@ def main():
         writer.writerow(
             [
                 "step",
-                "reward",
-                "terminated",
-                "truncated",
-                "dist_ee_obj",
-                "dist_obj_target",
-                "ee_x",
-                "ee_y",
-                "ee_z",
-                "obj_x",
-                "obj_y",
-                "obj_z",
-                "target_x",
-                "target_y",
-                "target_z",
-                "gripL_qpos",
-                "gripR_qpos",
+                # "reward",
+                # "terminated",
+                # "truncated",
+                # "dist_ee_obj",
+                # "dist_obj_target",
+                # "ee_x",
+                # "ee_y",
+                # "ee_z",
+                # "obj_x",
+                # "obj_y",
+                # "obj_z",
+                # "target_x",
+                # "target_y",
+                # "target_z",
+                # "gripL_qpos",
+                # "gripR_qpos",
                 "gripper_opening",
+                "joint_1",
+                "joint_2",
+                "joint_3",
+                "joint_4",
+                "joint_5",
+                "joint_6",
             ]
         )
 
@@ -73,23 +79,29 @@ def main():
             writer.writerow(
                 [
                     step,
-                    float(reward),
-                    bool(terminated),
-                    bool(truncated),
-                    dist_ee_obj,
-                    dist_obj_target,
-                    float(ee_pos[0]),
-                    float(ee_pos[1]),
-                    float(ee_pos[2]),
-                    float(obj_pos[0]),
-                    float(obj_pos[1]),
-                    float(obj_pos[2]),
-                    float(target_pos[0]),
-                    float(target_pos[1]),
-                    float(target_pos[2]),
-                    gripL,
-                    gripR,
+                    # float(reward),
+                    # bool(terminated),
+                    # bool(truncated),
+                    # dist_ee_obj,
+                    # dist_obj_target,
+                    # float(ee_pos[0]),
+                    # float(ee_pos[1]),
+                    # float(ee_pos[2]),
+                    # float(obj_pos[0]),
+                    # float(obj_pos[1]),
+                    # float(obj_pos[2]),
+                    # float(target_pos[0]),
+                    # float(target_pos[1]),
+                    # float(target_pos[2]),
+                    # gripL,
+                    # gripR,
                     opening,
+                    float(env.data.qpos[0]),
+                    float(env.data.qpos[1]),
+                    float(env.data.qpos[2]),
+                    float(env.data.qpos[3]),
+                    float(env.data.qpos[4]),
+                    float(env.data.qpos[5]),
                 ]
             )
 
