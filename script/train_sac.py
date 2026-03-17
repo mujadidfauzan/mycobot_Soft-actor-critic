@@ -13,7 +13,7 @@ from source.envs import GraspingEnv, ReachingEnv
 
 run_name = f"SAC_{datetime.now().strftime('%d_%m_%Y_%H_%M_%S')}"
 env_name = "GraspingEnv"
-DEBUG_VIEW = True
+DEBUG_VIEW = False
 models_dir = os.path.join("logs", "models", env_name, run_name)
 videos_dir = os.path.join("logs", "videos", env_name, run_name)
 tb_dir = os.path.join("logs", "tensorboard", env_name, run_name)
@@ -132,7 +132,6 @@ model.learn(
     callback=[
         checkpoint_callback,
         InfoTensorboardCallback(log_freq=1000),
-        RenderCallback(),
     ],
 )
 
