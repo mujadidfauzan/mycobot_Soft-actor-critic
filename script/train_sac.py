@@ -1,3 +1,4 @@
+import argparse
 import os
 from datetime import datetime
 
@@ -11,9 +12,20 @@ from torch import nn
 
 from source.envs import GraspingEnv, ReachingEnv
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--env", choices=["GraspingEnv", "ReachingEnv"], default="GraspingEnv")
+parser.add_argument("--timesteps", type=int, default=1_000_000)
+parser.add_argument("--debug-view", action="store_true")
+parser.add_argument(
+    "--grasp-dataset",
+    default=None,
+    help="Path to a .npz file with 'qpos' and 'qvel' arrays (used by ReachingEnv).",
+)
+args = parser.parse_args()
+
 run_name = f"SAC_{datetime.now().strftime('%d_%m_%Y_%H_%M_%S')}"
-env_name = "GraspingEnv"
-DEBUG_VIEW = False
+env_name = args.env
+DEBUG_VIEW = bool(args.debug_view)
 models_dir = os.path.join("logs", "models", env_name, run_name)
 videos_dir = os.path.join("logs", "videos", env_name, run_name)
 tb_dir = os.path.join("logs", "tensorboard", env_name, run_name)
@@ -31,6 +43,7 @@ def make_env():
         env = ReachingEnv(
             xml_file=model_path,
             render_mode="human" if DEBUG_VIEW else "rgb_array",
+            grasp_state_dataset_path=args.grasp_dataset,
         )
     elif env_name == "GraspingEnv":
         env = GraspingEnv(
@@ -128,7 +141,7 @@ model = SAC(
 
 
 model.learn(
-    total_timesteps=1_000_000,
+    total_timesteps=int(args.timesteps),
     callback=[
         checkpoint_callback,
         InfoTensorboardCallback(log_freq=1000),

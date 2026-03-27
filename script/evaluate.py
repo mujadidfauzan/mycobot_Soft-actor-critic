@@ -11,7 +11,7 @@ from source.envs.grasping_env import GraspingEnv
 
 
 def main():
-    model_path = "/home/fauzan/Mujoco/Skripsi/logs/models/GraspingEnv/SAC_26_02_2026_14_27_49/sac_lift_final.zip"
+    model_path = "/home/fauzan/Mujoco/Skripsi/logs/models/GraspingEnv/SAC_16_03_2026_07_48_58/sac_lift_final.zip"
     xml_path = "/home/fauzan/Mujoco/Skripsi/source/robot/object_lift.xml"
 
     out_dir = "./eval_logs"

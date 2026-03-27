@@ -6,6 +6,8 @@ from gymnasium import utils
 from gymnasium.envs.mujoco import MujocoEnv
 from gymnasium.spaces import Box
 
+from .mj_utils import resolve_object
+
 DEFAULT_CAMERA_CONFIG = {"trackbodyid": 0}
 
 
@@ -52,11 +54,12 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
             **kwargs,
         )
 
-        obj_joint_id = mujoco.mj_name2id(
-            self.model, mujoco.mjtObj.mjOBJ_JOINT, "obj_joint"
-        )
-        self.obj_qposadr = int(self.model.jnt_qposadr[obj_joint_id])
-        self.obj_dofadr = int(self.model.jnt_dofadr[obj_joint_id])
+        resolved_obj = resolve_object(self.model)
+        self.obj_body_name = resolved_obj.body_name
+        self.obj_joint_name = resolved_obj.joint_name
+        self.obj_frame_site_name = resolved_obj.frame_site_name
+        self.obj_qposadr = resolved_obj.qpos_adr
+        self.obj_dofadr = resolved_obj.dof_adr
 
         self.target_site_id = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_SITE, "target"
@@ -121,6 +124,9 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
         mujoco.mju_mat2Quat(quat, xmat)
         return quat
 
+    def _obj_quat(self) -> np.ndarray:
+        return self.data.qpos[self.obj_qposadr + 3 : self.obj_qposadr + 7].copy()
+
     # MAIN ENV
     def step(self, action):
         self.current_step += 1
@@ -143,7 +149,7 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
         if (
             np.linalg.norm(
                 self.data.site("attachment_site").xpos.copy()
-                - self.data.body("obj").xpos.copy()
+                - self.data.body("cube_obj").xpos.copy()
             )
             < 0.03
         ):
@@ -168,7 +174,7 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
 
     def _get_rew(self, action):
         ee_pos = self.data.site("attachment_site").xpos.copy()
-        obj_pos = self.data.body("obj").xpos.copy()
+        obj_pos = self.data.body(self.obj_body_name).xpos.copy()
         target_pos = self.data.site("target").xpos.copy()
 
         dist = np.linalg.norm(ee_pos - obj_pos)
@@ -179,7 +185,11 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
         reward_target = -target_dist * self._reward_dist_target_weight
         reward_target_tanh = 1.0 - float(np.tanh(float(target_dist) / 0.10))
 
-        obj_quat = self._site_xquat("obj_frame")
+        obj_quat = (
+            self._site_xquat(self.obj_frame_site_name)
+            if self.obj_frame_site_name is not None
+            else self._obj_quat()
+        )
         ee_quat = self._site_xquat("attachment_site")
 
         # ee quat
@@ -283,7 +293,11 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
 
         # Object
         obj_pos = qpos[self.obj_qposadr : self.obj_qposadr + 3]
-        obj_quat = self._site_xquat("obj_frame")
+        obj_quat = (
+            self._site_xquat(self.obj_frame_site_name)
+            if self.obj_frame_site_name is not None
+            else self._obj_quat()
+        )
 
         # End effector
         ee_pos = self.data.site("attachment_site").xpos
@@ -316,13 +330,16 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
         return obs.astype(np.float32)
 
     def get_physics_state(self):
+        grip_l = float(self.data.qpos[self.gripL_qadr])
+        grip_r = float(self.data.qpos[self.gripR_qadr])
+        gripper_state = "closed" if (grip_l < 0.0 and grip_r > 0.0) else "open"
         return {
             "step": self.current_step,
-            "obj_pos": self.data.body("obj").xpos.copy(),
+            "obj_pos": self.data.body(self.obj_body_name).xpos.copy(),
             "target_pos": self.data.site("target").xpos.copy(),
             "ee_pos": self.data.site("attachment_site").xpos.copy(),
             "qpos": self.data.qpos.copy(),
             "qvel": self.data.qvel.copy(),
-            "gripper_state": self.gripper_state,
+            "gripper_state": gripper_state,
             "joint_angles": self.data.qpos[: self.obj_qposadr].copy(),
         }

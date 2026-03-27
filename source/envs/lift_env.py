@@ -6,6 +6,8 @@ from gymnasium import utils
 from gymnasium.envs.mujoco import MujocoEnv
 from gymnasium.spaces import Box
 
+from .mj_utils import resolve_object
+
 DEFAULT_CAMERA_CONFIG = {"trackbodyid": 0}
 
 
@@ -49,11 +51,11 @@ class LiftEnv(MujocoEnv, utils.EzPickle):
             **kwargs,
         )
 
-        obj_joint_id = mujoco.mj_name2id(
-            self.model, mujoco.mjtObj.mjOBJ_JOINT, "obj_joint"
-        )
-        self.obj_qposadr = int(self.model.jnt_qposadr[obj_joint_id])
-        self.obj_dofadr = int(self.model.jnt_dofadr[obj_joint_id])
+        resolved_obj = resolve_object(self.model)
+        self.obj_body_name = resolved_obj.body_name
+        self.obj_joint_name = resolved_obj.joint_name
+        self.obj_qposadr = resolved_obj.qpos_adr
+        self.obj_dofadr = resolved_obj.dof_adr
 
         # print(f"Object joint qposadr: {self.obj_qposadr}")
         robot_dof = self.obj_qposadr
@@ -105,7 +107,7 @@ class LiftEnv(MujocoEnv, utils.EzPickle):
 
     def _get_rew(self, action):
         ee_pos = self.data.site("attachment_site").xpos.copy()
-        obj_pos = self.data.body("obj").xpos.copy()
+        obj_pos = self.data.body(self.obj_body_name).xpos.copy()
 
         dist = np.linalg.norm(ee_pos - obj_pos)
         reward_dist = -dist * self._reward_dist_weight
