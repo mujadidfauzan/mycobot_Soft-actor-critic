@@ -33,6 +33,9 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
         randomize_object_and_place: bool = True,
         place_position_jitter_xy: float = 0.03,
         place_yaw_jitter_rad: float = np.pi,
+        min_object_place_dist_xy: float = 0.10,
+        success_pos_tolerance_m: float = 0.025,
+        success_orient_tolerance_rad: float = 0.30,
         **kwargs,
     ):
         utils.EzPickle.__init__(
@@ -48,6 +51,9 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
             randomize_object_and_place,
             place_position_jitter_xy,
             place_yaw_jitter_rad,
+            min_object_place_dist_xy,
+            success_pos_tolerance_m,
+            success_orient_tolerance_rad,
             **kwargs,
         )
 
@@ -61,6 +67,9 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
         self._randomize_object_and_place = bool(randomize_object_and_place)
         self._place_position_jitter_xy = float(place_position_jitter_xy)
         self._place_yaw_jitter_rad = float(place_yaw_jitter_rad)
+        self._min_object_place_dist_xy = float(min_object_place_dist_xy)
+        self._success_pos_tolerance_m = float(success_pos_tolerance_m)
+        self._success_orient_tolerance_rad = float(success_orient_tolerance_rad)
 
         MujocoEnv.__init__(
             self,
@@ -187,8 +196,7 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
         target[6] = -0.02
         target[7] = 0.02
 
-        # target = np.clip(target, self.action_space.low, self.action_space.high)
-        # print("Target after clipping:", target)
+        target = np.clip(target, self.action_space.low, self.action_space.high)
 
         self.do_simulation(target, self.frame_skip)
 
@@ -196,7 +204,7 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
         reward, reward_info = self._get_rew(action)
         reward_info["object_key"] = self.current_object_key
         info = reward_info
-        terminated = False
+        terminated = bool(info["is_success"])
         truncated = self.current_step >= self.max_episode_steps
 
         if self.render_mode == "human":
@@ -223,6 +231,11 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
         orient_err = self._quat_orientation_error(obj_quat, target_quat)
         reward_orient = -orient_err * self._reward_orient_weight
         reward_orient_tanh = 1.0 - float(np.tanh(float(orient_err) / 0.50))
+        is_success = (
+            dist < self._success_pos_tolerance_m
+            and orient_err < self._success_orient_tolerance_rad
+        )
+        success_bonus = 5.0 if is_success else 0.0
 
         reward_info = {
             "dist": float(dist),
@@ -236,6 +249,8 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
             "orient_err": float(orient_err),
             "reward_orient": float(reward_orient),
             "reward_orient_tanh": float(reward_orient_tanh),
+            "success_bonus": float(success_bonus),
+            "is_success": bool(is_success),
         }
 
         reward = (
@@ -245,6 +260,7 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
             + reward_orient
             + reward_orient_tanh
             + control_penalty
+            + success_bonus
         )
 
         return reward, reward_info
@@ -266,7 +282,9 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
         half = 0.5 * yaw
         return np.array([np.cos(half), 0.0, 0.0, np.sin(half)], dtype=np.float64)
 
-    def _randomize_place_pose(self, object_key: str) -> np.ndarray | None:
+    def _randomize_place_pose(
+        self, object_key: str, obj_xy: np.ndarray | None = None
+    ) -> np.ndarray | None:
         if object_key not in self._place_body_by_object:
             return None
         if object_key not in self._place_defaults:
@@ -278,19 +296,30 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
             return None
 
         default_pos, default_quat = self._place_defaults[object_key]
-        jitter_xy = self.np_random.uniform(
-            low=-self._place_position_jitter_xy,
-            high=self._place_position_jitter_xy,
-            size=2,
-        )
+        new_pos = default_pos.copy()
+        for _ in range(50):
+            jitter_xy = self.np_random.uniform(
+                low=-self._place_position_jitter_xy,
+                high=self._place_position_jitter_xy,
+                size=2,
+            )
+            candidate_pos = default_pos.copy()
+            candidate_pos[:2] += jitter_xy
+            if obj_xy is None:
+                new_pos = candidate_pos
+                break
+            dist_xy = np.linalg.norm(candidate_pos[:2] - obj_xy[:2])
+            if dist_xy >= self._min_object_place_dist_xy:
+                new_pos = candidate_pos
+                break
+        else:
+            new_pos[:2] += np.array([self._min_object_place_dist_xy, 0.0])
+
         yaw = float(
             self.np_random.uniform(
                 low=-self._place_yaw_jitter_rad, high=self._place_yaw_jitter_rad
             )
         )
-
-        new_pos = default_pos.copy()
-        new_pos[:2] += jitter_xy
         new_quat = self._quat_mul(default_quat, self._yaw_to_quat(yaw))
 
         self.model.body_pos[body_id] = new_pos
@@ -362,7 +391,10 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
 
         # Target: 4cm above the chosen place site (or fallback to random XY).
         if place_site_name is not None:
-            place_quat = self._randomize_place_pose(self.current_object_key)
+            obj_xy = self.data.body(self.obj_body_name).xpos.copy()[:2]
+            place_quat = self._randomize_place_pose(
+                self.current_object_key, obj_xy=obj_xy
+            )
             mujoco.mj_forward(self.model, self.data)
             place_pos = self.data.site(place_site_name).xpos.copy()
             target_pos = place_pos + np.array([0.0, 0.0, self._target_above_place_m])

@@ -6,7 +6,7 @@ from gymnasium import utils
 from gymnasium.envs.mujoco import MujocoEnv
 from gymnasium.spaces import Box
 
-from .mj_utils import resolve_object
+from .mj_utils import resolve_known_objects, resolve_object
 
 DEFAULT_CAMERA_CONFIG = {"trackbodyid": 0}
 
@@ -29,6 +29,7 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
         default_camera_config: dict[str, float | int] = DEFAULT_CAMERA_CONFIG,
         reward_dist_weight: float = 2,
         reward_dist_target_weight: float = 1,
+        randomize_object: bool = True,
         **kwargs,
     ):
         utils.EzPickle.__init__(
@@ -38,11 +39,13 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
             default_camera_config,
             reward_dist_weight,
             reward_dist_target_weight,
+            randomize_object,
             **kwargs,
         )
 
         self._reward_dist_weight = reward_dist_weight
         self._reward_dist_target_weight = reward_dist_target_weight
+        self._randomize_object = bool(randomize_object)
 
         MujocoEnv.__init__(
             self,
@@ -54,7 +57,15 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
             **kwargs,
         )
 
-        resolved_obj = resolve_object(self.model)
+        self._objects = resolve_known_objects(self.model)
+        if len(self._objects) == 0:
+            resolved_obj = resolve_object(self.model)
+            self._objects = {
+                "obj": resolved_obj,
+            }
+
+        self.current_object_key: str = next(iter(self._objects.keys()))
+        resolved_obj = self._objects[self.current_object_key]
         self.obj_body_name = resolved_obj.body_name
         self.obj_joint_name = resolved_obj.joint_name
         self.obj_frame_site_name = resolved_obj.frame_site_name
@@ -77,6 +88,8 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
 
         self.gripL_dadr = int(self.model.jnt_dofadr[self.gripL_jid])
         self.gripR_dadr = int(self.model.jnt_dofadr[self.gripR_jid])
+        self.robot_qpos_len = max(self.gripL_qadr, self.gripR_qadr) + 1
+        self.robot_dof_len = max(self.gripL_dadr, self.gripR_dadr) + 1
 
         dummy_obs = self._get_obs()
         self.observation_space = Box(
@@ -97,6 +110,17 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
             ],
             "render_fps": int(np.round(1.0 / self.dt)),
         }
+
+    def _set_active_object(self, object_key: str) -> None:
+        if object_key not in self._objects:
+            raise KeyError(f"Unknown object key: {object_key}")
+        self.current_object_key = object_key
+        resolved = self._objects[object_key]
+        self.obj_body_name = resolved.body_name
+        self.obj_joint_name = resolved.joint_name
+        self.obj_frame_site_name = resolved.frame_site_name
+        self.obj_qposadr = resolved.qpos_adr
+        self.obj_dofadr = resolved.dof_adr
 
     # HELPER
     def enable_frame_visualization(self):
@@ -149,7 +173,7 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
         if (
             np.linalg.norm(
                 self.data.site("attachment_site").xpos.copy()
-                - self.data.body("cube_obj").xpos.copy()
+                - self.data.body(self.obj_body_name).xpos.copy()
             )
             < 0.03
         ):
@@ -164,6 +188,7 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
 
         observation = self._get_obs()
         reward, reward_info = self._get_rew(action)
+        reward_info["object_key"] = self.current_object_key
         info = reward_info
         terminated = False
         truncated = self.current_step >= self.max_episode_steps
@@ -236,6 +261,13 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
         qpos = self.init_qpos.copy()
         qvel = self.init_qvel.copy()
 
+        if self._randomize_object and len(self._objects) > 1:
+            object_keys = list(self._objects.keys())
+            object_idx = int(self.np_random.integers(0, len(object_keys)))
+            self._set_active_object(object_keys[object_idx])
+        else:
+            self._set_active_object(self.current_object_key)
+
         adr = self.obj_qposadr
         vadr = self.obj_dofadr
 
@@ -246,6 +278,14 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
 
         # reset
         obj_pos = np.array([0.19523733, 0.00090934, 0.050998])
+
+        far = np.array([2.0, 2.0, 2.0], dtype=np.float64)
+        for key, obj in self._objects.items():
+            if key == self.current_object_key:
+                continue
+            qpos[obj.qpos_adr : obj.qpos_adr + 3] = far
+            qpos[obj.qpos_adr + 3 : obj.qpos_adr + 7] = [1.0, 0.0, 0.0, 0.0]
+            qvel[obj.dof_adr : obj.dof_adr + 6] = 0.0
 
         # Set position
         qpos[adr + 0] = obj_pos[0]
@@ -285,8 +325,8 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
         qvel = self.data.qvel
 
         # Robot joint positions & velocities
-        robot_qpos = qpos[: self.obj_qposadr]
-        robot_qvel = qvel[: self.obj_dofadr]
+        robot_qpos = qpos[: self.robot_qpos_len]
+        robot_qvel = qvel[: self.robot_dof_len]
 
         # Gripper state (2 finger joint terakhir)
         gripper_state = robot_qpos[-2:]

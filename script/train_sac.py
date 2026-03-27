@@ -2,8 +2,6 @@ import argparse
 import os
 from datetime import datetime
 
-import gymnasium as gym
-import numpy as np
 from stable_baselines3 import SAC
 from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback
 from stable_baselines3.common.monitor import Monitor
@@ -36,6 +34,7 @@ os.makedirs(tb_dir, exist_ok=True)
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 model_path = os.path.join(current_dir, "..", "source", "robot", "object_lift.xml")
+run_prefix = "grasp" if env_name == "GraspingEnv" else "reach"
 
 
 def make_env():
@@ -64,14 +63,14 @@ if not DEBUG_VIEW:
         video_folder=video_folder,
         record_video_trigger=lambda step: step % 50000 == 0,
         video_length=1000,
-        name_prefix="lift_reach",
+        name_prefix=run_prefix,
     )
 
 
 checkpoint_callback = CheckpointCallback(
     save_freq=20000,
     save_path=models_dir,
-    name_prefix="sac_lift",
+    name_prefix=f"sac_{run_prefix}",
     save_replay_buffer=False,
     save_vecnormalize=False,
 )
@@ -93,23 +92,20 @@ class InfoTensorboardCallback(BaseCallback):
     def __init__(self, log_freq=1000, verbose=0):
         super().__init__(verbose)
         self.log_freq = log_freq
+        self._excluded_keys = {"object_key"}
 
     def _on_step(self) -> bool:
         if self.n_calls % self.log_freq == 0:
             infos = self.locals.get("infos", [])
             if len(infos) > 0:
                 info0 = infos[0]
-                for k in [
-                    "dist",
-                    "reward_dist",
-                    "control_penalty",
-                    "reward_target",
-                    "reward_dist_tanh",
-                    "reward_target_tanh",
-                    "reward_orient",
-                ]:
-                    if k in info0:
-                        self.logger.record(f"custom/{k}", float(info0[k]))
+                for key, value in info0.items():
+                    if key in self._excluded_keys:
+                        continue
+                    if isinstance(value, bool):
+                        self.logger.record(f"custom/{key}", float(value))
+                    elif isinstance(value, (int, float)):
+                        self.logger.record(f"custom/{key}", float(value))
         return True
 
 
@@ -149,6 +145,6 @@ model.learn(
 )
 
 
-model.save(os.path.join(models_dir, "sac_lift_final"))
+model.save(os.path.join(models_dir, f"sac_{run_prefix}_final"))
 
 env.close()
