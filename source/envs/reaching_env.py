@@ -36,6 +36,7 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
         min_object_place_dist_xy: float = 0.10,
         success_pos_tolerance_m: float = 0.025,
         success_orient_tolerance_rad: float = 0.30,
+        lost_grasp_distance_m: float = 0.08,
         **kwargs,
     ):
         utils.EzPickle.__init__(
@@ -54,6 +55,7 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
             min_object_place_dist_xy,
             success_pos_tolerance_m,
             success_orient_tolerance_rad,
+            lost_grasp_distance_m,
             **kwargs,
         )
 
@@ -70,6 +72,7 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
         self._min_object_place_dist_xy = float(min_object_place_dist_xy)
         self._success_pos_tolerance_m = float(success_pos_tolerance_m)
         self._success_orient_tolerance_rad = float(success_orient_tolerance_rad)
+        self._lost_grasp_distance_m = float(lost_grasp_distance_m)
 
         MujocoEnv.__init__(
             self,
@@ -124,9 +127,11 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
         }
         self._available_tasks: list[tuple[str, str]] = []
         for obj_key, site_name in self._place_site_by_object.items():
-            if obj_key in self._objects and mujoco.mj_name2id(
-                self.model, mujoco.mjtObj.mjOBJ_SITE, site_name
-            ) != -1:
+            if (
+                obj_key in self._objects
+                and mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, site_name)
+                != -1
+            ):
                 self._available_tasks.append((obj_key, site_name))
 
         self._place_defaults: dict[str, tuple[np.ndarray, np.ndarray]] = {}
@@ -204,7 +209,7 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
         reward, reward_info = self._get_rew(action)
         reward_info["object_key"] = self.current_object_key
         info = reward_info
-        terminated = bool(info["is_success"])
+        terminated = bool(info["is_success"] or info["is_grasp_lost"])
         truncated = self.current_step >= self.max_episode_steps
 
         if self.render_mode == "human":
@@ -212,14 +217,16 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
         return observation, reward, terminated, truncated, info
 
     def _get_rew(self, action):
+        ee_pos = self.data.site("attachment_site").xpos.copy()
         obj_pos = self.data.body(self.obj_body_name).xpos.copy()
         target_pos = self.data.site("target").xpos.copy()
 
         pos_err = obj_pos - target_pos
         dist = np.linalg.norm(pos_err)
+        ee_obj_dist = np.linalg.norm(ee_pos - obj_pos)
         reward_dist = -dist * self._reward_dist_weight
         reward_dist_tanh = 1.0 - float(np.tanh(float(dist) / 0.10))
-        reward_axis = -self._reward_axis_weight * float(np.sum(np.abs(pos_err)))
+        # reward_axis = -self._reward_axis_weight * float(np.sum(np.abs(pos_err)))
 
         control_penalty = -0.001 * np.sum(np.square(action))
 
@@ -235,28 +242,31 @@ class ReachingEnv(MujocoEnv, utils.EzPickle):
             dist < self._success_pos_tolerance_m
             and orient_err < self._success_orient_tolerance_rad
         )
+        is_grasp_lost = ee_obj_dist > self._lost_grasp_distance_m
         success_bonus = 5.0 if is_success else 0.0
 
         reward_info = {
             "dist": float(dist),
+            "ee_obj_dist": float(ee_obj_dist),
             "pos_err_x": float(pos_err[0]),
             "pos_err_y": float(pos_err[1]),
             "pos_err_z": float(pos_err[2]),
             "reward_dist": float(reward_dist),
             "reward_dist_tanh": float(reward_dist_tanh),
-            "reward_axis": float(reward_axis),
+            # "reward_axis": float(reward_axis),
             "control_penalty": float(control_penalty),
             "orient_err": float(orient_err),
             "reward_orient": float(reward_orient),
             "reward_orient_tanh": float(reward_orient_tanh),
             "success_bonus": float(success_bonus),
             "is_success": bool(is_success),
+            "is_grasp_lost": bool(is_grasp_lost),
         }
 
         reward = (
             reward_dist
             + reward_dist_tanh
-            + reward_axis
+            # + reward_axis
             + reward_orient
             + reward_orient_tanh
             + control_penalty

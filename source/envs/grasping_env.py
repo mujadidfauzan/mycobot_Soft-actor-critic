@@ -202,10 +202,12 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
         obj_pos = self.data.body(self.obj_body_name).xpos.copy()
         target_pos = self.data.site("target").xpos.copy()
 
+        # ee obj dist
         dist = np.linalg.norm(ee_pos - obj_pos)
         reward_dist = -dist * self._reward_dist_weight
         reward_dist_tanh = 1.0 - float(np.tanh(float(dist) / 0.10))
 
+        # obj target dist
         target_dist = np.linalg.norm(target_pos - obj_pos)
         reward_target = -target_dist * self._reward_dist_target_weight
         reward_target_tanh = 1.0 - float(np.tanh(float(target_dist) / 0.10))
