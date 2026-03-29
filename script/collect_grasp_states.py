@@ -53,6 +53,7 @@ def main() -> None:
 
     qpos_list: list[np.ndarray] = []
     qvel_list: list[np.ndarray] = []
+    object_keys: list[str] = []
 
     episodes = 0
     while len(qpos_list) < args.num_states and episodes < args.max_episodes:
@@ -66,6 +67,7 @@ def main() -> None:
             if is_grasped(env):
                 qpos_list.append(env.data.qpos.copy())
                 qvel_list.append(env.data.qvel.copy())
+                object_keys.append(str(env.current_object_key))
                 break
 
             if truncated:
@@ -82,6 +84,7 @@ def main() -> None:
         out_path,
         qpos=qpos,
         qvel=qvel,
+        object_keys=np.asarray(object_keys, dtype="<U16"),
         model_path=str(args.model),
         xml_path=str(args.xml),
         object_body=str(getattr(env, "obj_body_name", "")),
