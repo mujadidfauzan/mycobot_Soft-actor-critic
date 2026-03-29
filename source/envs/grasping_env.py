@@ -107,7 +107,11 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
         self._place_site_ids = tuple(
             site_id
             for site_name in ("cube_place_site", "tri_place_site", "cyl_place_site")
-            if (site_id := mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, site_name))
+            if (
+                site_id := mujoco.mj_name2id(
+                    self.model, mujoco.mjtObj.mjOBJ_SITE, site_name
+                )
+            )
             != -1
         )
         tracked_body_names = list(self._place_body_names) + [
@@ -384,11 +388,11 @@ class GraspingEnv(MujocoEnv, utils.EzPickle):
             + reward_dist_tanh
             + reward_target
             + reward_target_tanh
-            + reward_pitch
-            + reward_lift
-            + reward_touch
-            + reward_grasp
-            + reward_success
+            # + reward_pitch
+            # + reward_lift
+            # + reward_touch
+            # + reward_grasp
+            # + reward_success
             + control_penalty
         )
 
