@@ -244,8 +244,8 @@ class GraspingEnvV1(MujocoEnv, utils.EzPickle):
             "control_penalty": float(control_penalty),
             "reward_target": float(reward_target),
             "reward_target_tanh": float(reward_target_tanh),
-            # "reward_orient": float(reward_orient),
-            # "reward_ee_orient": float(reward_orientation_ee_error),
+            "reward_orient": float(reward_orient),
+            "reward_ee_orient": float(reward_orientation_ee_error),
         }
 
         reward = (
@@ -256,8 +256,8 @@ class GraspingEnvV1(MujocoEnv, utils.EzPickle):
             + reward_target
             # + reward_lift
             + reward_target_tanh
-            # + reward_orient
-            # + reward_orientation_ee_error
+            + reward_orient
+            + reward_orientation_ee_error
         )
 
         return reward, reward_info

@@ -8,10 +8,12 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, VecVideoRecorder
 from torch import nn
 
-from source.envs import GraspingEnv, ReachingEnv, GraspingEnvV1
+from source.envs import GraspingEnv, GraspingEnvV1, ReachingEnv
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--env", choices=["GraspingEnv", "ReachingEnv"], default="GraspingEnv")
+parser.add_argument(
+    "--env", choices=["GraspingEnv", "ReachingEnv"], default="GraspingEnv"
+)
 parser.add_argument("--timesteps", type=int, default=1_000_000)
 parser.add_argument("--debug-view", action="store_true")
 parser.add_argument(
@@ -121,7 +123,7 @@ model = SAC(
     "MlpPolicy",
     env,
     learning_rate=3e-4,
-    buffer_size=1_000_000,
+    buffer_size=5_000_000,
     learning_starts=5000,
     batch_size=256,
     ent_coef="auto_0.01",
