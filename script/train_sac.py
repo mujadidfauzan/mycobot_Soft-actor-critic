@@ -8,7 +8,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, VecVideoRecorder
 from torch import nn
 
-from source.envs import GraspingEnv, ReachingEnv
+from source.envs import GraspingEnv, ReachingEnv, GraspingEnvV1
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--env", choices=["GraspingEnv", "ReachingEnv"], default="GraspingEnv")
@@ -45,7 +45,7 @@ def make_env():
             grasp_state_dataset_path=args.grasp_dataset,
         )
     elif env_name == "GraspingEnv":
-        env = GraspingEnv(
+        env = GraspingEnvV1(
             xml_file=model_path,
             render_mode="human" if DEBUG_VIEW else "rgb_array",
         )
