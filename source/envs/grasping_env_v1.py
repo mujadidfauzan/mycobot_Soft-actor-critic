@@ -70,7 +70,6 @@ class GraspingEnvV1(MujocoEnv, utils.EzPickle):
             },
         ]
 
-
         self.object_meta = []
         for cfg in self.object_configs:
             joint_id = mujoco.mj_name2id(
@@ -161,7 +160,6 @@ class GraspingEnvV1(MujocoEnv, utils.EzPickle):
 
     def _get_active_obj_quat(self):
         return self._site_xquat(self.active_object["site"])
-    
 
     # MAIN ENV
     def step(self, action):
@@ -246,8 +244,8 @@ class GraspingEnvV1(MujocoEnv, utils.EzPickle):
             "control_penalty": float(control_penalty),
             "reward_target": float(reward_target),
             "reward_target_tanh": float(reward_target_tanh),
-            "reward_orient": float(reward_orient),
-            "reward_ee_orient": float(reward_orientation_ee_error),
+            # "reward_orient": float(reward_orient),
+            # "reward_ee_orient": float(reward_orientation_ee_error),
         }
 
         reward = (
@@ -258,8 +256,8 @@ class GraspingEnvV1(MujocoEnv, utils.EzPickle):
             + reward_target
             # + reward_lift
             + reward_target_tanh
-            + reward_orient
-            + reward_orientation_ee_error
+            # + reward_orient
+            # + reward_orientation_ee_error
         )
 
         return reward, reward_info
@@ -268,7 +266,7 @@ class GraspingEnvV1(MujocoEnv, utils.EzPickle):
 
         qpos = self.init_qpos.copy()
         qvel = self.init_qvel.copy()
-        
+
         # Random Object
         obj_idx = int(self.np_random.integers(0, len(self.object_meta)))
         self.active_object = self.object_meta[obj_idx]
@@ -312,7 +310,6 @@ class GraspingEnvV1(MujocoEnv, utils.EzPickle):
 
         # Zero object velocity
         qvel[vadr : vadr + 6] = 0.0
-
 
         # Zero object velocity
         qvel[vadr : vadr + 6] = 0.0
