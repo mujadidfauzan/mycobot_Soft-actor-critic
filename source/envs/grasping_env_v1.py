@@ -155,6 +155,10 @@ class GraspingEnvV1(MujocoEnv, utils.EzPickle):
         mujoco.mju_mat2Quat(quat, xmat)
         return quat
 
+    def _site_z_axis(self, site_name: str) -> np.ndarray:
+        xmat = self.data.site(site_name).xmat.reshape(3, 3)
+        return xmat[:, 2].copy()
+
     def _get_active_obj_pos(self):
         return self.data.body(self.active_object["body"]).xpos.copy()
 
@@ -245,7 +249,7 @@ class GraspingEnvV1(MujocoEnv, utils.EzPickle):
             "reward_target": float(reward_target),
             "reward_target_tanh": float(reward_target_tanh),
             "reward_orient": float(reward_orient),
-            "reward_ee_orient": float(reward_orientation_ee_error),
+            # "reward_ee_orient": float(reward_orientation_ee_error),
         }
 
         reward = (
@@ -257,7 +261,7 @@ class GraspingEnvV1(MujocoEnv, utils.EzPickle):
             # + reward_lift
             + reward_target_tanh
             + reward_orient
-            + reward_orientation_ee_error
+            # + reward_orientation_ee_error
         )
 
         return reward, reward_info
