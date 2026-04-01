@@ -50,13 +50,13 @@
       <body name="triangle_obj" pos="0.27 0.04 0.05">
         <freejoint name="triangle_joint"/>
         <geom name="triangle_geom" type="mesh" mesh="triangle_mesh" mass="0.03" material="tri_mat"/>
-        <site name="triangle_frame" pos="0 0 0.01" size="0.01" rgba="0 1 0 1" type="sphere"/>
+        <site name="triangle_frame" pos="0 0 0.015" size="0.01" rgba="0 1 0 1" type="sphere"/>
       </body>
 
       <body name="cylinder_obj" pos="0.27 -0.04 0.05">
         <freejoint name="cylinder_joint"/>
         <geom name="cylinder_geom" type="mesh" mesh="cylinder_mesh" mass="0.03" material="cyl_mat"/>
-        <site name="cylinder_frame" pos="0 0 0.01" size="0.01" rgba="0 0 1 1" type="sphere"/>
+        <site name="cylinder_frame" pos="0 0 0.015" size="0.01" rgba="0 0 1 1" type="sphere"/>
       </body>
 
       <!-- Place targets (hole/tray meshes). The env sets the 'target' site to 4cm above one of these. -->

@@ -41,6 +41,9 @@ class GraspingEnvV1(MujocoEnv, utils.EzPickle):
 
         self._reward_dist_weight = reward_dist_weight
         self._reward_dist_target_weight = reward_dist_target_weight
+        self._position_bonus_threshold = 0.03
+        self._obj_gripper_bonus_reward = 5.0
+        self._obj_target_bonus_reward = 10.0
 
         MujocoEnv.__init__(
             self,
@@ -155,10 +158,6 @@ class GraspingEnvV1(MujocoEnv, utils.EzPickle):
         mujoco.mju_mat2Quat(quat, xmat)
         return quat
 
-    def _site_z_axis(self, site_name: str) -> np.ndarray:
-        xmat = self.data.site(site_name).xmat.reshape(3, 3)
-        return xmat[:, 2].copy()
-
     def _get_active_obj_pos(self):
         return self.data.body(self.active_object["body"]).xpos.copy()
 
@@ -189,7 +188,7 @@ class GraspingEnvV1(MujocoEnv, utils.EzPickle):
                 self.data.site("attachment_site").xpos.copy()
                 - self._get_active_obj_pos()
             )
-            < 0.03
+            < self._position_bonus_threshold
         ):
             self.gripper_ctrl(close=True, target=target)
         else:
@@ -215,53 +214,48 @@ class GraspingEnvV1(MujocoEnv, utils.EzPickle):
         obj_pos = self._get_active_obj_pos()
         target_pos = self.data.site("target").xpos.copy()
 
-        dist = np.linalg.norm(ee_pos - obj_pos)
+        dist = float(np.linalg.norm(ee_pos - obj_pos))
         reward_dist = -dist * self._reward_dist_weight
-        reward_dist_tanh = 1.0 - float(np.tanh(float(dist) / 0.10))
+        reward_dist_tanh = 1.0 - float(np.tanh(dist / 0.10))
 
-        target_dist = np.linalg.norm(target_pos - obj_pos)
+        target_dist = float(np.linalg.norm(target_pos - obj_pos))
         reward_target = -target_dist * self._reward_dist_target_weight
-        reward_target_tanh = 1.0 - float(np.tanh(float(target_dist) / 0.10))
+        reward_target_tanh = 1.0 - float(np.tanh(target_dist / 0.10))
 
-        obj_quat = self._get_active_obj_quat()
-        ee_quat = self._site_xquat("attachment_site")
-
-        # ee quat
-        obj_ee_quat_dot = np.abs(np.dot(obj_quat, ee_quat))
-        obj_ee_quat_dot = np.clip(obj_ee_quat_dot, -1.0, 1.0)
-        angle_error = 2.0 * np.arccos(obj_ee_quat_dot)
-        reward_orientation_ee_error = (1.0 - float(np.tanh(angle_error / 0.5))) * 0.5
-
-        # obj quat
-        target_quat = np.array([1.0, 0.0, 0.0, 0.0])
-        quat_dot = np.abs(np.dot(obj_quat, target_quat))
-        quat_dot = np.clip(quat_dot, -1.0, 1.0)
-        orientation_error = 1.0 - quat_dot
-        reward_orient = -orientation_error * 0.5
+        reward_obj_gripper_bonus = (
+            self._obj_gripper_bonus_reward
+            if dist < self._position_bonus_threshold
+            else 0.0
+        )
+        reward_obj_target_bonus = (
+            self._obj_target_bonus_reward
+            if target_dist < self._position_bonus_threshold
+            else 0.0
+        )
 
         control_penalty = -0.001 * np.sum(np.square(action))
         reward_info = {
-            "dist": float(dist),
-            "target_dist": float(target_dist),
+            "dist": dist,
+            "target_dist": target_dist,
             "reward_dist": float(reward_dist),
             "reward_dist_tanh": float(reward_dist_tanh),
             "control_penalty": float(control_penalty),
             "reward_target": float(reward_target),
             "reward_target_tanh": float(reward_target_tanh),
-            "reward_orient": float(reward_orient),
-            # "reward_ee_orient": float(reward_orientation_ee_error),
+            "reward_obj_gripper_bonus": float(reward_obj_gripper_bonus),
+            "reward_obj_target_bonus": float(reward_obj_target_bonus),
+            "is_obj_gripper_close": bool(dist < self._position_bonus_threshold),
+            "is_obj_target_close": bool(target_dist < self._position_bonus_threshold),
         }
 
         reward = (
             reward_dist
             + reward_dist_tanh
-            # + touch_bonus
             + control_penalty
             + reward_target
-            # + reward_lift
             + reward_target_tanh
-            + reward_orient
-            # + reward_orientation_ee_error
+            + reward_obj_gripper_bonus
+            + reward_obj_target_bonus
         )
 
         return reward, reward_info
